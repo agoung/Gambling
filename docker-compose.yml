@@ -1,0 +1,138 @@
+# SportsAnalytics Pro - Docker Compose Configuration
+# Production-ready setup with PostgreSQL, Redis, and Node.js
+
+services:
+  # Node.js Application
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=${NODE_ENV:-production}
+    container_name: sports-analytics-app
+    restart: ${DOCKER_RESTART_POLICY:-unless-stopped}
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=3001
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-appuser}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-fantasy_analytics}
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+    ports:
+      - "${APP_PORT:-3001}:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./backend/logs:/app/logs
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: sports-analytics-db
+    restart: ${DOCKER_RESTART_POLICY:-unless-stopped}
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-appuser}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - POSTGRES_DB=${POSTGRES_DB:-fantasy_analytics}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-appuser} -d ${POSTGRES_DB:-fantasy_analytics}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "effective_cache_size=768MB"
+      - "-c"
+      - "maintenance_work_mem=64MB"
+      - "-c"
+      - "wal_buffers=16MB"
+      - "-c"
+      - "default_statistics_target=100"
+      - "-c"
+      - "random_page_cost=1.1"
+      - "-c"
+      - "effective_io_concurrency=200"
+      - "-c"
+      - "work_mem=8MB"
+      - "-c"
+      - "min_wal_size=1GB"
+      - "-c"
+      - "max_wal_size=4GB"
+      - "-c"
+      - "max_connections=200"
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: sports-analytics-redis
+    restart: ${DOCKER_RESTART_POLICY:-unless-stopped}
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Nginx Reverse Proxy (optional, for production)
+  nginx:
+    image: nginx:alpine
+    container_name: sports-analytics-nginx
+    restart: ${DOCKER_RESTART_POLICY:-unless-stopped}
+    ports:
+      - "${NGINX_PORT:-80}:80"
+      - "${NGINX_SSL_PORT:-443}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend:/usr/share/nginx/html:ro
+      - nginx_cache:/var/cache/nginx
+    depends_on:
+      - app
+    networks:
+      - app-network
+    profiles:
+      - production
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  nginx_cache:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

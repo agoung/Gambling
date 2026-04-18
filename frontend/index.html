@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SportsAnalytics Pro - Analitik Olahraga Kece Abis</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Loading Screen -->
+        <div id="loading-screen" class="loading-screen">
+            <div class="loader">
+                <div class="spinner"></div>
+                <p>Nyalain mesin analitik dulu ya bos...</p>
+            </div>
+        </div>
+
+        <!-- Auth Modal -->
+        <div id="auth-modal" class="modal active">
+            <div class="modal-content auth-container">
+                <div class="auth-tabs">
+                    <button class="tab-btn active" data-tab="login">Masuk</button>
+                    <button class="tab-btn" data-tab="register">Daftar Baru</button>
+                </div>
+
+                <div id="login-panel" class="auth-panel active">
+                    <h2>Selamat Datang Kembali Bos!</h2>
+                    <p>Masuk ke dashboard analitik lu</p>
+                    <form id="login-form">
+                        <div class="input-group">
+                            <label>Username</label>
+                            <input type="text" name="username" required autocomplete="username" placeholder="Masukin username lu">
+                        </div>
+                        <div class="input-group">
+                            <label>Password</label>
+                            <input type="password" name="password" required autocomplete="current-password" placeholder="Password rahasia lu">
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-full">Gaskeun Masuk! 🔥</button>
+                    </form>
+                </div>
+
+                <div id="register-panel" class="auth-panel">
+                    <h2>Join The Club Bos!</h2>
+                    <p>Dapet modal awal $10.000 buat mulai analisa. Gokil kan? 😎</p>
+                    <form id="register-form">
+                        <div class="input-row">
+                            <div class="input-group">
+                                <label>Username Kece</label>
+                                <input type="text" name="username" required minlength="3" placeholder="Username keren lu">
+                            </div>
+                            <div class="input-group">
+                                <label>Email</label>
+                                <input type="email" name="email" required placeholder="email@lu.com">
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Password Aman</label>
+                            <input type="password" name="password" required minlength="8" placeholder="Minimal 8 karakter, ada huruf besar, kecil, angka, simbol">
+                            <small>Biar akun lu gak dihack orang 🔒</small>
+                        </div>
+                        <div class="input-row">
+                            <div class="input-group">
+                                <label>Nama Depan</label>
+                                <input type="text" name="firstName" placeholder="Nama lu">
+                            </div>
+                            <div class="input-group">
+                                <label>Nama Belakang</label>
+                                <input type="text" name="lastName" placeholder="Nama belakang">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-full">Daftar Sekarang! 🚀</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Application -->
+        <div id="main-app" class="main-app hidden">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <div class="logo">
+                        <span class="logo-icon">📊</span>
+                        <span class="logo-text">SportsAnalytics<span class="pro">Pro</span></span>
+                    </div>
+                    <nav class="main-nav">
+                        <button class="nav-btn active" data-view="dashboard">Dashboard</button>
+                        <button class="nav-btn" data-view="market">Pasar</button>
+                        <button class="nav-btn" data-view="portfolios">Portofolio</button>
+                        <button class="nav-btn" data-view="analytics">Analitik</button>
+                    </nav>
+                </div>
+                <div class="header-right">
+                    <div class="balance-display">
+                        <span class="balance-label">Saldo Virtual</span>
+                        <span class="balance-amount" id="user-balance">$10,000.00</span>
+                    </div>
+                    <div class="user-menu">
+                        <button class="user-btn" id="user-menu-btn">
+                            <span id="username-display">User</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </button>
+                        <div class="dropdown-menu hidden" id="user-dropdown">
+                            <a href="#" data-action="profile">Profil Lu</a>
+                            <a href="#" data-action="settings">Pengaturan</a>
+                            <a href="#" data-action="history">Riwayat</a>
+                            <hr>
+                            <a href="#" data-action="logout" class="logout">Keluar Bos</a>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Live Ticker -->
+            <div class="live-ticker">
+                <div class="ticker-label">🔴 PASAR LIVE</div>
+                <div class="ticker-content" id="market-ticker">
+                    <span class="ticker-item">🏀 Lakers +2.5 (65% menang)</span>
+                    <span class="ticker-item">⚽ Man City vs Arsenal (Over 2.5: 72%)</span>
+                    <span class="ticker-item">🎾 Djokovic -185 (Implied 65%)</span>
+                    <span class="ticker-item">🏈 Chiefs -3 (Spread: 58% cover)</span>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <main class="main-content">
+                <!-- Dashboard View -->
+                <div id="dashboard-view" class="view active">
+                    <div class="dashboard-header">
+                        <h1>Dashboard Kece Abis</h1>
+                        <div class="time-filters">
+                            <button class="filter-btn active" data-period="24h">24J</button>
+                            <button class="filter-btn" data-period="7d">7H</button>
+                            <button class="filter-btn" data-period="30d">30H</button>
+                            <button class="filter-btn" data-period="all">SEMUA</button>
+                        </div>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card primary">
+                            <div class="stat-header">
+                                <span class="stat-label">Total Nilai Portofolio</span>
+                                <span class="stat-change positive">+12.5%</span>
+                            </div>
+                            <div class="stat-value" id="total-value">$12,450.00</div>
+                            <div class="stat-chart">
+                                <canvas id="value-chart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-label">Posisi Aktif</span>
+                            </div>
+                            <div class="stat-value" id="active-positions">8</div>
+                            <div class="stat-subtext">Di 3 portofolio</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-label">Win Rate</span>
+                            </div>
+                            <div class="stat-value" id="win-rate">68%</div>
+                            <div class="stat-subtext">24 Menang - 11 Kalah bulan ini</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-label">Rata-rata Kepercayaan</span>
+                            </div>
+                            <div class="stat-value" id="avg-confidence">74.2</div>
+                            <div class="stat-subtext">Analisa dengan keyakinan tinggi</div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-grid">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <h3>Pergerakan Pasar Live</h3>
+                                <span class="live-indicator">● LIVE</span>
+                            </div>
+                            <div class="market-movers" id="market-movers">
+                                <!-- Dynamic content -->
+                            </div>
+                        </div>
+
+                        <div class="panel">
+                            <div class="panel-header">
+                                <h3>Top Performers 🔥</h3>
+                                <button class="btn btn-text">Lihat Semua</button>
+                            </div>
+                            <div class="performers-list" id="top-performers">
+                                <!-- Dynamic content -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Market View -->
+                <div id="market-view" class="view">
+                    <div class="market-header">
+                        <h1>Pasar Live 🔥</h1>
+                        <div class="market-search">
+                            <input type="text" placeholder="Cari tim, pemain, event..." id="market-search">
+                            <button class="btn btn-primary">Cari</button>
+                        </div>
+                    </div>
+
+                    <div class="market-categories">
+                        <button class="category-btn active" data-sport="all">Semua Olahraga</button>
+                        <button class="category-btn" data-sport="basketball">🏀 Basket</button>
+                        <button class="category-btn" data-sport="football">🏈 Football</button>
+                        <button class="category-btn" data-sport="soccer">⚽ Bola</button>
+                        <button class="category-btn" data-sport="tennis">🎾 Tenis</button>
+                        <button class="category-btn" data-sport="esports">🎮 Esports</button>
+                    </div>
+
+                    <div class="market-content">
+                        <div class="market-section">
+                            <h3>🔥 Lagi Trending Nih</h3>
+                            <div class="entity-grid" id="trending-entities">
+                                <!-- Dynamic cards -->
+                            </div>
+                        </div>
+
+                        <div class="market-section">
+                            <h3>⚡ Event Live</h3>
+                            <div class="events-list" id="live-events">
+                                <!-- Dynamic events -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Portfolios View -->
+                <div id="portfolios-view" class="view">
+                    <div class="portfolios-header">
+                        <h1>Portofolio Gue 💼</h1>
+                        <button class="btn btn-primary" id="create-portfolio-btn">
+                            <span>+</span> Bikin Portofolio Baru
+                        </button>
+                    </div>
+
+                    <div class="portfolios-grid" id="portfolios-list">
+                        <!-- Portfolio cards -->
+                    </div>
+                </div>
+
+                <!-- Analytics View -->
+                <div id="analytics-view" class="view">
+                    <h1>Analitik Performa 📈</h1>
+                    <div class="analytics-grid">
+                        <div class="analytics-card wide">
+                            <h3>Laba/Rugi Seiring Waktu</h3>
+                            <canvas id="pnl-chart"></canvas>
+                        </div>
+                        <div class="analytics-card">
+                            <h3>Distribusi Olahraga</h3>
+                            <canvas id="sport-distribution"></canvas>
+                        </div>
+                        <div class="analytics-card">
+                            <h3>Analisis Risiko</h3>
+                            <div class="risk-metrics" id="risk-metrics">
+                                <!-- Dynamic content -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Position Modal -->
+        <div id="position-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Buka Posisi Baru</h2>
+                    <button class="close-btn" data-close-modal>&times;</button>
+                </div>
+                <div class="entity-preview" id="position-entity-preview">
+                    <!-- Entity info -->
+                </div>
+                <form id="position-form">
+                    <div class="input-group">
+                        <label>Tipe Posisi</label>
+                        <div class="position-type-selector">
+                            <button type="button" class="pos-type-btn active" data-type="long">
+                                <span>📈 Long</span>
+                                <small>Optimis Bakal Naik</small>
+                            </button>
+                            <button type="button" class="pos-type-btn" data-type="short">
+                                <span>📉 Short</span>
+                                <small>Pesimis Bakal Turun</small>
+                            </button>
+                            <button type="button" class="pos-type-btn" data-type="analysis">
+                                <span>📊 Analisis</span>
+                                <small>Cuma Pantau Doang</small>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label>Jumlah Unit</label>
+                            <input type="number" name="quantity" value="1" min="0.1" step="0.1" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Tingkat Kepercayaan (0-100)</label>
+                            <input type="range" name="confidence" min="0" max="100" value="50">
+                            <span class="confidence-value">50%</span>
+                        </div>
+                    </div>
+                    <div class="position-summary">
+                        <div class="summary-row">
+                            <span>Harga Masuk:</span>
+                            <span id="entry-price">$100.00</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Total Investasi:</span>
+                            <span id="total-investment">$100.00</span>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Gaskeun Buka Posisi! 🚀</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast-container" class="toast-container"></div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
