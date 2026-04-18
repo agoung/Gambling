@@ -35,14 +35,13 @@ Features:
 
 # Tambahin remote repository
 echo "🔗 Nambahin remote repository..."
-git remote add origin https://github.com/agoung/Gambling.git
-
+git remote add origin https://github.com/agoung/slot-membunuhmu-perlahan.git
 # Push ke GitHub
 echo "☁️ Push ke GitHub..."
 git branch -M main
 git push -u origin main
 
 echo ""
-echo "✅ Berhasil! Cek repo lu di: https://github.com/agoung/Gambling"
+echo "✅ Berhasil! Cek repo lu di: https://github.com/agoung/slot-membunuhmu-perlahan.git"
 echo ""
 echo "🔥 SportsAnalytics Pro udah live di GitHub bos!"
